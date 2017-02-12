@@ -1,7 +1,7 @@
 /* 
  * tsh - A tiny shell program with job control
  * 
- * <Put your name and ID here>
+ * Tung Lin Hsieh, thsie004@ucr.edu, SID: 861102705
  */
 #include <stdio.h>
 #include <stdlib.h>
