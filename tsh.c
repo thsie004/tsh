@@ -165,11 +165,12 @@ int main(int argc, char **argv)
 */
 void eval(char *cmdline) 
 {
+    //printf("starting eval\n");
     char* argv[MAXARGS];
     int isBackground = parseline(cmdline, argv);
 
     if(argv[0] == NULL) return;
-    
+     
     if(!builtin_cmd(argv)){
         int pid;
         sigset_t mask;
@@ -181,9 +182,10 @@ void eval(char *cmdline)
         if((pid = fork()) == 0){
             sigprocmask(SIG_UNBLOCK, &mask, NULL);
             setpgid(0,0);
-            execvp(argv[0], argv);
-            perror(argv[0]);
-            return;
+            if((execvp(argv[0], argv)) < 0){
+                printf("%s: Command not found\n", argv[0]);
+                exit(0);
+            }
         }
 
         //parent process
@@ -200,7 +202,7 @@ void eval(char *cmdline)
         }
 
     }
-
+    //printf("ending eval\n");
     return;
 }
 
@@ -340,10 +342,12 @@ void do_bgfg(char **argv)
 void waitfg(pid_t pid)
 {
     struct job_t *curJob = 0;
+    //printf("waiting for: %d\n", pid);
     while((curJob = getjobpid(jobs, pid)) != NULL && curJob->state == FG){
         sleep(1);
-        //printf("waiting for: %d\n", pid);
+        //printf("job state: %d", curJob->state);
     }
+    //printf("finished waiting for: %d\n", pid);
     return;
 }
 
@@ -361,13 +365,13 @@ void waitfg(pid_t pid)
 void sigchld_handler(int sig) 
 {
     int status, pid;
-//    printf("SIGNAL CHILD CALLED\n");
+    //printf("SIGNAL CHILD CALLED\n");
     pid = waitpid(-1, &status, WNOHANG);
     if(WIFEXITED(status) || WIFSIGNALED(status)){
         deletejob(jobs, pid);
-    //    printf("process id: %d terminated\n", pid);
+        //printf("process id: %d terminated\n", pid);
     }
-  //  printf("sig child returning\n");
+    //printf("sig child returning\n");
     return;
 }
 
@@ -378,12 +382,10 @@ void sigchld_handler(int sig)
  */
 void sigint_handler(int sig) 
 {
-    int i;
-    for(i = 0; i < MAXJOBS; i++){
-        if(jobs[i].state == FG){
-            kill(-jobs[i].pid, SIGINT);
-            printf("Job [%d] (%d) terminated by signal %d\n", jobs[i].jid, jobs[i].pid, sig);
-        }
+    pid_t pid;
+    if((pid = fgpid(jobs)) != 0){
+        kill(-pid, SIGINT);
+        printf("Job [%d] (%d) terminated by signal %d\n", pid2jid(pid), pid, sig);
     }
     return;
 }
@@ -395,15 +397,13 @@ void sigint_handler(int sig)
  */
 void sigtstp_handler(int sig) 
 {
-    int i;
-    for(i = 0; i < MAXJOBS; i++){
-        if(jobs[i].state == FG){
-            kill(-jobs[i].pid, SIGTSTP);
-            printf("Job [%d] (%d) stopped by signal %d\n", jobs[i].jid, jobs[i].pid, sig);
-            jobs[i].state = ST;
-        }
+    pid_t pid;
+    if((pid = fgpid(jobs)) != 0){
+        kill(pid, SIGTSTP);
+        getjobpid(jobs, pid)->state = ST;
+        printf("Job [%d] (%d) stopped by signal %d\n", pid2jid(pid), pid, sig);
     }
-//    printf("stp returning\n");
+    //printf("stp returning\n");
     return;
 }
 
