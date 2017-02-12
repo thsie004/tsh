@@ -302,7 +302,7 @@ void do_bgfg(char **argv)
         jid = 1;
     }
     if(atoi(argv[1]) == 0){
-        printf("%s: argument must be a PID or %%jobid", argv[0]);
+        printf("%s: argument must be a PID or %%jobid\n", argv[0]);
         return;
     }
     if(jid){
@@ -321,6 +321,7 @@ void do_bgfg(char **argv)
 
     if(!strcmp(argv[0], "bg")){
         //bg call
+        printf("[%d] (%d) %s", curJob->jid, curPID, curJob->cmdline);
         kill(curPID, SIGCONT);
         curJob->state = BG;
     }else{
@@ -341,6 +342,7 @@ void waitfg(pid_t pid)
     struct job_t *curJob = 0;
     while((curJob = getjobpid(jobs, pid)) != NULL && curJob->state == FG){
         sleep(1);
+        //printf("waiting for: %d\n", pid);
     }
     return;
 }
